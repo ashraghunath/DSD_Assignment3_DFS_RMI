@@ -48,6 +48,12 @@ public abstract class Stub
     public static <T> T create(Class<T> c, Skeleton<T> skeleton)
         throws UnknownHostException
     {
+        if(c==null || skeleton ==null)
+        {
+            throw new NullPointerException(" paramaters null");
+        }
+
+
         throw new UnsupportedOperationException("not implemented");
     }
 

@@ -21,10 +21,12 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Serializable
 {
+    private ArrayList<String> path;
+    public static final String DELIMITER = "/";
     /** Creates a new path which represents the root directory. */
     public Path()
     {
-        throw new UnsupportedOperationException("not implemented");
+        this.path = new ArrayList<String>();
     }
 
     /** Creates a new path by appending the given component to an existing path.
@@ -38,7 +40,24 @@ public class Path implements Iterable<String>, Serializable
     */
     public Path(Path path, String component)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(component==null || component.length()==0 || !isValidComponent(component))
+            throw new IllegalArgumentException("invalid component string");
+        Iterator<String> pathIt = path.iterator();
+        this.path = new ArrayList<String>();
+        while (pathIt.hasNext()) {
+            this.path.add(pathIt.next());
+        }
+        this.path.add(component);
+
+    }
+
+    //Checks if component has separators
+    private boolean isValidComponent(String component) {
+        for (char c : component.toCharArray()) {
+            if(c=='/' || c==':')
+                return false;
+        }
+        return true;
     }
 
     /** Creates a new path from a path string.
@@ -55,7 +74,21 @@ public class Path implements Iterable<String>, Serializable
      */
     public Path(String path)
     {
-        throw new UnsupportedOperationException("not implemented");
+
+        if (path == null)
+            throw new IllegalArgumentException("The path given was null.");
+        if (path.length() == 0 || path.charAt(0) != '/')
+            throw new IllegalArgumentException("The path did not start with /.");
+        this.path = new ArrayList<String>();
+        for (String s : path.split("/")) {
+            if (!isValidComponent(s)) {
+                throw new IllegalArgumentException("The path had / or :.");
+            } else if (s.length() == 0) {
+                continue;
+            } else {
+                this.path.add(s);
+            }
+        }
     }
 
     /** Returns an iterator over the components of the path.
@@ -69,7 +102,28 @@ public class Path implements Iterable<String>, Serializable
     @Override
     public Iterator<String> iterator()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return new Iterator<String>() {
+            private int i = 0;
+
+            public boolean hasNext() {
+                if (i >= path.size())
+                    return false;
+                return true;
+            }
+
+            public String next() {
+                String temp = "";
+                if (i < path.size())
+                    temp = path.get(i);
+                else {
+                    throw new NoSuchElementException(
+                            "Trying to advance past end of iterator.");
+                }
+                i++;
+                return temp;
+            }
+
+        };
     }
 
     /** Lists the paths of all files in a directory tree on the local
@@ -84,7 +138,10 @@ public class Path implements Iterable<String>, Serializable
      */
     public static Path[] list(File directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+
+        ArrayList<Path> paths = listHelper(directory, directory.getPath()
+                .length());
+        return paths.toArray(new Path[paths.size()]);
     }
 
     /** Determines whether the path represents the root directory.
@@ -94,7 +151,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public boolean isRoot()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.path.isEmpty();
     }
 
     /** Returns the path to the parent of this path.
@@ -104,7 +161,16 @@ public class Path implements Iterable<String>, Serializable
      */
     public Path parent()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(isRoot())
+        {
+            throw new IllegalArgumentException("Root has no parent ");
+        }
+        String parentPath = "";
+        for(int index=0; index<this.path.size()-1; index++)
+        {
+            parentPath+="/"+this.path.get(0);
+        }
+        return new Path(parentPath);
     }
 
     /** Returns the last component in the path.
@@ -115,7 +181,10 @@ public class Path implements Iterable<String>, Serializable
      */
     public String last()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (this.isRoot())
+            throw new IllegalArgumentException(
+                    "Current path is the root.(Thrown from last())");
+        return this.path.get(this.path.size() - 1);
     }
 
     /** Determines if the given path is a subpath of this path.
@@ -130,7 +199,9 @@ public class Path implements Iterable<String>, Serializable
      */
     public boolean isSubpath(Path other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        String thisPath = this.toString();
+        String otherPath = other.toString();
+        return thisPath.startsWith(otherPath);
     }
 
     /** Converts the path to <code>File</code> object.
@@ -155,14 +226,14 @@ public class Path implements Iterable<String>, Serializable
     @Override
     public boolean equals(Object other)
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.toString().equals(other.toString());
     }
 
     /** Returns the hash code of the path. */
     @Override
     public int hashCode()
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.toString().hashCode();
     }
 
     /** Converts the path to a string.
@@ -176,6 +247,31 @@ public class Path implements Iterable<String>, Serializable
     @Override
     public String toString()
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (this.path.size() == 0)
+            return "/";
+
+        String path = "";
+        for (int i = 0; i < this.path.size(); i++) {
+            path += "/" + this.path.get(i);
+        }
+        return path;
     }
+
+    private static ArrayList<Path> listHelper(File directory, int parentLength) {
+        ArrayList<Path> paths = new ArrayList<Path>();
+
+        for (File f : directory.listFiles()) {
+            if (f.isFile()) {
+                paths.add(new Path(f.getPath().substring(parentLength)));
+            } else if (f.isDirectory()) {
+                for (Path p : listHelper(f, parentLength))
+                    paths.add(p);
+            }
+        }
+
+        Collections.reverse(paths);
+        return paths;
+    }
+
+
 }
