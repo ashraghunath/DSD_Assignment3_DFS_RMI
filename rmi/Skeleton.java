@@ -7,6 +7,7 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.*;
+import java.util.ArrayList;
 
 /** RMI skeleton
 
@@ -36,8 +37,7 @@ public class Skeleton<T>
     private Class<T> remoteInterface=null;
     private T server=null;
     private ServerSocket serverSocket;
-    private Object lock = new Object() ;
-    private boolean started=false;
+    private ListenThread<T> listenThread;
 
     public Skeleton(){
 
@@ -97,14 +97,7 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        if(c==null || server==null)
-            throw new NullPointerException("parameters are null while initializing");
-        if(!c.isInterface())
-            throw new Error("Variable c not an interface");
-        if(!CommonFunctions.throwsRemoteException(c))
-            throw new Error("Constructor cannot accept not remote interface");
-        this.remoteInterface=c;
-        this.server=server;
+        this(c,server);
         this.inetSocketAddress=address;
     }
 
@@ -129,6 +122,7 @@ public class Skeleton<T>
     protected void stopped(Throwable cause)
     {
         //Todo not sure
+
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -148,6 +142,7 @@ public class Skeleton<T>
      */
     protected boolean listen_error(Exception exception)
     {
+        stop();
         return false;
     }
 
@@ -160,6 +155,9 @@ public class Skeleton<T>
      */
     protected void service_error(RMIException exception)
     {
+        if (!exception.getClass().equals(EOFException.class)) {
+            exception.printStackTrace();
+        }
     }
 
     /** Starts the skeleton server.
@@ -177,33 +175,37 @@ public class Skeleton<T>
      */
     public synchronized void start() throws RMIException
     {
-        if(started)
-            return;
+        if(this.serverSocket != null && !this.serverSocket.isClosed()) {
+            throw new RMIException("The server has already been started and has not since stopped");
+        }
+            try {
 
-        try{
-
-            if (inetSocketAddress == null){
-                serverSocket = new ServerSocket(0);
-                this.inetSocketAddress = (InetSocketAddress) serverSocket.getLocalSocketAddress();
-            }else{
-                serverSocket = new ServerSocket();
-                serverSocket.bind(inetSocketAddress);
+                if (inetSocketAddress == null
+                        || this.inetSocketAddress.getPort() == 0 || this.inetSocketAddress.getHostName() == null) {
+                    this.serverSocket = new ServerSocket(0);
+                    //TOdo to add socketaddress?
+                    this.inetSocketAddress = new InetSocketAddress(this.serverSocket.getLocalPort());
+                }
+                else
+                {
+                    this.serverSocket = new ServerSocket(
+                            this.inetSocketAddress.getPort(),
+                            1000,
+                            this.inetSocketAddress.getAddress()
+                    );
+                }
+            } catch (Exception e) {
+                throw new RMIException(e);
             }
-            started=true;
-        }catch (Exception e)
-        {
-            started=false;
-            throw new RMIException(e);
-        }
-        try
-        {
-            new Thread(new ListenThread()).start();
-        }catch (Exception e)
-        {
-            started=false;
-            forceClose(serverSocket);
-        }
-//        throw new UnsupportedOperationException("not implemented");
+            try {
+                this.listenThread = (new ListenThread<T>(this, this.serverSocket, this.inetSocketAddress,
+                        this.remoteInterface, this.server));
+                this.listenThread.start();
+            } catch (Exception e) {
+                listen_error(e);
+
+                throw new RMIException(e);
+            }
     }
 
     /** Stops the skeleton server, if it is already running.
@@ -217,169 +219,159 @@ public class Skeleton<T>
      */
     public synchronized void stop()
     {
-        forceClose(serverSocket);
+            //TODO force close is causing timeout , try again?
+//        forceClose(serverSocket);
+        try {
+            if(this.serverSocket != null && !this.serverSocket.isClosed())
+                serverSocket.close();
+        }
+        catch (Exception e) {
+            listen_error(e);
+        }
+        try {
+            listenThread.join();
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            listen_error(e);
+        }
     }
 
 
-    private class ListenThread implements Runnable {
-        private ListenThread() {
+    private class ListenThread<T> extends Thread {
+
+        ArrayList<ServiceThread<T>> threads = new ArrayList<ServiceThread<T>>();
+        InetSocketAddress inetSocketAddress;
+        Class<T> remoteInterface;
+        T server;
+        ServerSocket serverSocket;
+        Skeleton<T> skeleton;
+
+        public ListenThread(Skeleton<T> skeleton, ServerSocket serverSocket, InetSocketAddress inetSocketAddress, Class<T> remoteInterface, T server) {
+            this.skeleton = skeleton;
+            this.serverSocket = serverSocket;
+            this.inetSocketAddress = inetSocketAddress;
+            this.remoteInterface = remoteInterface;
+            this.server = server;
         }
 
         public void run() {
-            Socket socket = null;
             try {
-                serverSocket = new ServerSocket(inetSocketAddress.getPort());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            while (true) {
-                synchronized (lock) {
-                    try {
-                        socket = serverSocket.accept();
-                        (new Thread(Skeleton.this.new ServiceThread(socket))).start();
-                    } catch (IOException e) {
-                        System.out.println("Server stopped : " + e.getMessage());
-                        break;
-                    }
+                while (true) {
+                    Socket socket = this.serverSocket.accept();
+                    ServiceThread<T> thread = (new ServiceThread<T>(this.skeleton, socket, this.server, this.remoteInterface));
+                    thread.start();
+                    threads.add(thread);
                 }
+            } catch (SocketException e) {
+                try {
+                    if (this.serverSocket.isClosed())
+                        for (ServiceThread<T> t : this.threads) {
+                            t.join();
+                        }
+                } catch (InterruptedException ep) {
+
+                }
+            } catch (IOException e) {
+                this.skeleton.listen_error(e);
             }
         }
     }
 
-    private class ServiceThread implements Runnable {
+    private class ServiceThread<T> extends Thread {
+            //TODO add access modifier change later
+            Socket socket;
+        T server = null;
+        Class<T> remoteInterface;
+        Skeleton<T> skeleton;
 
-        private final Socket socket;
 
-        ServiceThread(Socket socket) {
+        public ServiceThread(Skeleton<T> skeleton, Socket socket, T server, Class<T> remoteInterface) {
+
+            this.skeleton = skeleton;
             this.socket = socket;
+            this.server = server;
+            this.remoteInterface = remoteInterface;
         }
 
-        private void feedback(String var1, Throwable var2, ObjectOutputStream methodName) throws RMIException {
-            try {
-                RMIException var4 = new RMIException("remote exception: " + var1, var2);
-                methodName.writeBoolean(false);
-                methodName.writeObject(var4);
-            } catch (Exception var5) {
-            }
-
-            throw new RMIException(var1, var2);
-        }
 
         public void run() {
-
             ObjectOutputStream objOutput = null;
             ObjectInputStream objInput = null;
-
+            Object ret = null;
 
             try {
-                try {
-
-                    objOutput = new ObjectOutputStream(this.socket.getOutputStream());
-                    objOutput.flush();
-                    objInput = new ObjectInputStream(this.socket.getInputStream());
-
-                } catch (Throwable throwable) {
-                    throw new RMIException("unable to create object output stream", throwable);
-                }
-
-                String methodName = null;
-                Class[] paramTypes = null;
-                Object[] params = null;
-                Method var6 = null;
-                Object var7 = null;
-                boolean var8 = true;
-
-                try {
-                    methodName = (String) objInput.readObject();
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method name", throwable, objOutput);
-                }
-
-                try {
-                    paramTypes = (Class<T>[]) objInput.readObject();
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method parameter types", throwable, objOutput);
-                }
-
-                try {
-                    params = (Object[])(objInput.readObject());
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method arguments", throwable, objOutput);
-                }
-
-                try {
-                    var6 = Skeleton.this.remoteInterface.getMethod(methodName, paramTypes);
-                } catch (Throwable throwable) {
-                    this.feedback("method not found", throwable, objOutput);
-                }
-
-                try {
-                    var7 = var6.invoke(Skeleton.this.server, params);
-                } catch (InvocationTargetException e) {
-                    var7 = e.getCause();
-                    var8 = false;
-                } catch (Throwable throwable) {
-                    this.feedback("unable to invoke method", throwable, objOutput);
-                }
-
-                try {
-                    objOutput.writeBoolean(var8);
-                    objOutput.writeObject(var7);
-                } catch (IOException e) {
-                    throw new RMIException("unable to send result to peer", e);
-                } catch (Throwable throwable) {
-                    this.feedback("unable to send result to peer", throwable, objOutput);
-                }
-            } catch (RMIException var46) {
-                Skeleton.this.service_error(var46);
-            } finally {
-                if (objOutput != null) {
-                    try {
-                        objOutput.flush();
-                    } catch (Exception e) {
-                    }
-
-                    try {
-                        objOutput.close();
-                    } catch (Exception e) {
-                    }
-                }
-
-                if (objInput != null) {
-                    try {
-                        objInput.close();
-                    } catch (Exception e) {
-                    }
-                }
-
-                Skeleton.forceClose(this.socket);
+                objOutput = new ObjectOutputStream(this.socket.getOutputStream());
+                objOutput.flush();
+                objInput = new ObjectInputStream(this.socket.getInputStream());
+            }
+            catch(Exception e) {
+                close(objInput);
+                close(objOutput);
+                return;
             }
 
-        }
-
-        protected void finalize() throws Throwable {
             try {
-                Skeleton.forceClose(this.socket);
-            } finally {
-                super.finalize();
+                @SuppressWarnings("unchecked")
+                String methodName = (String) objInput.readObject();
+                @SuppressWarnings("unchecked")
+                Class<T>[] paramTypes = (Class<T>[]) objInput.readObject();
+                @SuppressWarnings("unchecked")
+                Object[] params = (Object[]) objInput.readObject();
+
+                this.remoteInterface.getMethod(methodName, paramTypes);
+
+                Method method = this.server.getClass().getMethod(methodName, paramTypes);
+
+
+                if(!method.isAccessible()) {
+                    method.setAccessible(true);
+                }
+
+                ret = method.invoke(this.server, params);
+            }
+            catch(Exception e) {
+                if(e instanceof InvocationTargetException) {
+                    ret = e;
+                }
+                else {
+                    close(objInput);
+                    close(objOutput);
+                    this.skeleton.service_error(new RMIException("Exception thrown in service response.", e));
+                    return;
+                }
             }
 
-        }
-    }
-
-    private static void forceClose(Socket socket) {
-        try {
-            socket.close();
-        } catch (Throwable var2) {
-        }
-
-    }
-
-    private static void forceClose(ServerSocket serverSocket) {
-        try {
-            serverSocket.close();
-        } catch (Throwable var2) {
+            try {
+                objOutput.writeObject(ret);
+            }
+            catch(Exception e) {
+                this.skeleton.service_error(new RMIException("Exception thrown in service response."));
+            }
+            finally {
+                close(objInput);
+                close(objOutput);
+            }
         }
 
-    }
+        public void close(Closeable c) {
+            if (c == null) return;
+            try {
+                c.close();
+            } catch (IOException e) {
+                // ignore the exception
+            }
+        }
+
+        }
+
+
+
+//    private static void forceClose(ServerSocket serverSocket) {
+//        try {
+//            serverSocket.close();
+//        } catch (Throwable var2) {
+//        }
+//
+//    }
 }

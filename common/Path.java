@@ -21,8 +21,7 @@ import java.util.*;
  */
 public class Path implements Iterable<String>, Serializable
 {
-    private ArrayList<String> path;
-    public static final String DELIMITER = "/";
+    private List<String> path;
     /** Creates a new path which represents the root directory. */
     public Path()
     {
@@ -40,7 +39,7 @@ public class Path implements Iterable<String>, Serializable
     */
     public Path(Path path, String component)
     {
-        if(component==null || component.length()==0 || !isValidComponent(component))
+        if(!Objects.nonNull(component) || component.isEmpty() || !isValidComponent(component))
             throw new IllegalArgumentException("invalid component string");
         Iterator<String> pathIt = path.iterator();
         this.path = new ArrayList<String>();
@@ -76,13 +75,13 @@ public class Path implements Iterable<String>, Serializable
     {
 
         if (path == null)
-            throw new IllegalArgumentException("The path given was null.");
+            throw new IllegalArgumentException("null path found");
         if (path.length() == 0 || path.charAt(0) != '/')
-            throw new IllegalArgumentException("The path did not start with /.");
+            throw new IllegalArgumentException("no / in beginning of path");
         this.path = new ArrayList<String>();
         for (String s : path.split("/")) {
             if (!isValidComponent(s)) {
-                throw new IllegalArgumentException("The path had / or :.");
+                throw new IllegalArgumentException("path contains / or :");
             } else if (s.length() == 0) {
                 continue;
             } else {
@@ -139,7 +138,7 @@ public class Path implements Iterable<String>, Serializable
     public static Path[] list(File directory) throws FileNotFoundException
     {
 
-        ArrayList<Path> paths = listHelper(directory, directory.getPath()
+        ArrayList<Path> paths = findFilePathFromDirectory(directory, directory.getPath()
                 .length());
         return paths.toArray(new Path[paths.size()]);
     }
@@ -212,6 +211,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public File toFile(File root)
     {
+        //not called anywhere
         throw new UnsupportedOperationException("not implemented");
     }
 
@@ -257,20 +257,20 @@ public class Path implements Iterable<String>, Serializable
         return path;
     }
 
-    private static ArrayList<Path> listHelper(File directory, int parentLength) {
-        ArrayList<Path> paths = new ArrayList<Path>();
+    private static ArrayList<Path> findFilePathFromDirectory(File directory, int parentLength) {
+        ArrayList<Path> pathsFound = new ArrayList<Path>();
 
-        for (File f : directory.listFiles()) {
-            if (f.isFile()) {
-                paths.add(new Path(f.getPath().substring(parentLength)));
-            } else if (f.isDirectory()) {
-                for (Path p : listHelper(f, parentLength))
-                    paths.add(p);
+        for (File fileMaybe : directory.listFiles()) {
+            if (fileMaybe.isFile()) {
+                pathsFound.add(new Path(fileMaybe.getPath().substring(parentLength)));
+            } else if (fileMaybe.isDirectory()) {
+                for (Path p : findFilePathFromDirectory(fileMaybe, parentLength))
+                    pathsFound.add(p);
             }
         }
 
-        Collections.reverse(paths);
-        return paths;
+        //Todo not sure. maybe need to reverse collections later.
+        return pathsFound;
     }
 
 
