@@ -33,7 +33,7 @@ import java.util.ArrayList;
 */
 public class Skeleton<T>
 {
-    private InetSocketAddress inetSocketAddress;
+    InetSocketAddress inetSocketAddress;
     private Class<T> remoteInterface=null;
     private T server=null;
     private ServerSocket serverSocket;
@@ -122,7 +122,9 @@ public class Skeleton<T>
     protected void stopped(Throwable cause)
     {
         //Todo not sure
-
+        if (cause != null) {
+            cause.printStackTrace();
+        }
     }
 
     /** Called when an exception occurs at the top level in the listening
@@ -230,6 +232,7 @@ public class Skeleton<T>
         }
         try {
             listenThread.join();
+            stopped(null);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -308,6 +311,8 @@ public class Skeleton<T>
             catch(Exception e) {
                 close(objInput);
                 close(objOutput);
+                // Exception thrown in service response.
+                // this.skeleton.service_error(new RMIException("Exception thrown in service response."));
                 return;
             }
 
@@ -335,6 +340,7 @@ public class Skeleton<T>
                     ret = e;
                 }
                 else {
+                    //throw new RMIException(e);
                     close(objInput);
                     close(objOutput);
                     this.skeleton.service_error(new RMIException("Exception thrown in service response.", e));

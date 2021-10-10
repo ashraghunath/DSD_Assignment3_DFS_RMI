@@ -1,6 +1,11 @@
 package rmi;
 
+import common.CommonFunctions;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.net.*;
+import java.util.Objects;
 
 /** RMI stub factory.
 
@@ -46,15 +51,18 @@ public abstract class Stub
                       this interface cannot be dynamically created.
      */
     public static <T> T create(Class<T> c, Skeleton<T> skeleton)
-        throws UnknownHostException
+            throws UnknownHostException, IllegalStateException, NullPointerException
     {
-        if(c==null || skeleton ==null)
-        {
-            throw new NullPointerException(" paramaters null");
+        if(Objects.isNull(skeleton.inetSocketAddress)) {
+            throw new IllegalStateException();
         }
 
+        if((skeleton.inetSocketAddress.getAddress().isAnyLocalAddress()) && Objects.nonNull (skeleton.inetSocketAddress.getPort())
+                && (Objects.isNull(skeleton.inetSocketAddress.getHostName()))) {
+            throw new UnknownHostException();
+        }
 
-        throw new UnsupportedOperationException("not implemented");
+        return create(c, skeleton.inetSocketAddress);
     }
 
     /** Creates a stub, given a skeleton with an assigned address and a hostname
@@ -89,8 +97,15 @@ public abstract class Stub
      */
     public static <T> T create(Class<T> c, Skeleton<T> skeleton,
                                String hostname)
+            throws IllegalStateException, NullPointerException, Error
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(Objects.isNull(skeleton) || Objects.isNull(hostname))
+            throw new NullPointerException();
+        if(Objects.isNull(skeleton.inetSocketAddress))
+            throw new IllegalStateException();
+
+        InetSocketAddress inetSocketAddress = new InetSocketAddress(hostname, skeleton.inetSocketAddress.getPort());
+        return create(c,inetSocketAddress);
     }
 
     /** Creates a stub, given the address of a remote server.
@@ -111,7 +126,23 @@ public abstract class Stub
                       this interface cannot be dynamically created.
      */
     public static <T> T create(Class<T> c, InetSocketAddress address)
+            throws NullPointerException, Error
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(Objects.isNull(c) || Objects.isNull(address))
+        {
+            throw new NullPointerException();
+        }
+        if(!c.isInterface() || !CommonFunctions.throwsRemoteException(c))
+        {
+            throw new Error();
+        }
+
+        InvocationHandler handler
+                = new StubInvocationHandler(c, address);
+
+        @SuppressWarnings("unchecked")
+        T stub = (T) Proxy.newProxyInstance(c.getClassLoader(), new Class<?>[]{c}, handler);
+
+        return stub;
     }
 }
