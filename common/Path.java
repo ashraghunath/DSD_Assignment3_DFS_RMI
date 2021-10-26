@@ -212,7 +212,7 @@ public class Path implements Iterable<String>, Serializable
     public File toFile(File root)
     {
         //not called anywhere
-        throw new UnsupportedOperationException("not implemented");
+        return new File(root, this.toString());
     }
 
     /** Compares two paths for equality.

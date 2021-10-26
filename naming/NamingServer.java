@@ -1,6 +1,11 @@
 package naming;
 
 import java.io.*;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
 
 import rmi.*;
 import common.*;
@@ -31,6 +36,15 @@ import storage.*;
  */
 public class NamingServer implements Service, Registration
 {
+
+    private boolean started = false;
+    private boolean stopping = false;
+    private Skeleton<Registration> registrationSkeleton = null;
+    private Skeleton<Service> serviceSkeleton = null;
+    private Random random = null;
+    private List<ServerStub> serverStubList = null;
+    private HashTree tree = null;
+
     /** Creates the naming server object.
 
         <p>
@@ -38,7 +52,9 @@ public class NamingServer implements Service, Registration
      */
     public NamingServer()
     {
-        throw new UnsupportedOperationException("not implemented");
+        serverStubList = new LinkedList<>();
+        random =  new Random();
+
     }
 
     /** Starts the naming server.
@@ -54,7 +70,24 @@ public class NamingServer implements Service, Registration
      */
     public synchronized void start() throws RMIException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (started)
+        {
+            throw new RMIException("Naming server running");
+        }
+
+        if (stopping)
+        {
+            throw new RMIException("Naming server stopping");
+        }
+
+        serviceSkeleton = new Skeleton<>(Service.class, this, new InetSocketAddress(NamingStubs.SERVICE_PORT));
+
+        registrationSkeleton = new Skeleton<>(Registration.class, this, new InetSocketAddress(NamingStubs.REGISTRATION_PORT));
+
+        serviceSkeleton.start();
+        registrationSkeleton.start();
+
+        started = true;
     }
 
     /** Stops the naming server.
@@ -68,7 +101,26 @@ public class NamingServer implements Service, Registration
      */
     public void stop()
     {
-        throw new UnsupportedOperationException("not implemented");
+        synchronized(this)
+        {
+            stopping = true;
+        }
+        try
+        {
+            serviceSkeleton.stop();
+            registrationSkeleton.stop();
+
+            synchronized(this)
+            {
+                started = false;
+                stopping = false;
+            }
+            stopped(null);
+        }
+        catch (Throwable throwableStop)
+        {
+            stopped(throwableStop);
+        }
     }
 
     /** Indicates that the server has completely shut down.
@@ -88,38 +140,69 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.tree.isDirectory(path);
     }
 
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.tree.list(directory);
     }
 
     @Override
     public boolean createFile(Path file)
         throws RMIException, FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(file.isRoot())
+            return false;
+
+        ServerStub serverStub = serverStubList.get(random.nextInt(serverStubList.size()));
+
+
+        if(!tree.isDirectory(file.parent()))
+        {
+            throw new FileNotFoundException("The parent of "+file.toString()+" is not a directory.");
+        }
+
+        boolean success = tree.createFile(file, serverStub);
+
+        if(!success)
+            return false;
+
+        success = serverStub.commandStub.create(file);
+
+        if(!success)
+        {
+            this.tree.delete(file);
+        }
+
+        return success;
     }
 
     @Override
     public boolean createDirectory(Path directory) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        if(directory.isRoot())
+            return false;
+
+        if(!this.tree.isDirectory(directory.parent()))
+        {
+            throw new FileNotFoundException("The parent of " + directory.toString() + " is not a directory.");
+        }
+
+        return this.tree.createDirectory(directory);
     }
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        return (!path.isRoot()) && this.tree.delete(path);
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
-        throw new UnsupportedOperationException("not implemented");
+        return this.tree.getStorage(file).storageStub;
     }
 
     // The method register is documented in Registration.java.
@@ -127,6 +210,53 @@ public class NamingServer implements Service, Registration
     public Path[] register(Storage client_stub, Command command_stub,
                            Path[] files)
     {
-        throw new UnsupportedOperationException("not implemented");
+        if (client_stub == null || command_stub == null || files == null)
+        {
+            throw new NullPointerException("Registering with null arguments");
+        }
+
+        ArrayList<Path> deleteList = new ArrayList<>();
+        ServerStub newStub = new ServerStub(command_stub, client_stub);
+
+        for (ServerStub s : serverStubList)
+        {
+            if (newStub.equals(s))
+            {
+                throw new IllegalStateException("Duplicate storage server registration");
+            }
+        }
+
+        synchronized (serverStubList)
+        {
+            serverStubList.add(newStub);
+        }
+
+        for (Path path : files)
+        {
+            if (!path.isRoot() && !this.tree.createFileRecursive(path, newStub))
+            {
+                deleteList.add(path);
+            }
+        }
+
+        Path[] deleteArray = new Path[deleteList .size()];
+        deleteArray = deleteList.toArray(deleteArray);
+
+        return deleteArray;
+    }
+}
+
+
+class ServerStub{
+    public Command commandStub;
+    public Storage storageStub;
+
+    public ServerStub(Command commandStub, Storage storageStub) {
+        this.commandStub = commandStub;
+        this.storageStub = storageStub;
+    }
+
+    public boolean equals(ServerStub serverStub) {
+        return storageStub.equals(serverStub.storageStub) && commandStub.equals(serverStub.commandStub);
     }
 }
