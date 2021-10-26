@@ -177,7 +177,7 @@ public abstract class Stub
 
         private Object invokeRemoteMethod(Object proxy, Method method, Object[] args) throws Throwable {
             Object inputStreamObject = null;
-            RMIStatus rmiStatus;
+            String rmiStatus;
 
             try {
                 StubHandler invocationHandler = (StubHandler) Proxy.getInvocationHandler(proxy);
@@ -192,15 +192,15 @@ public abstract class Stub
 
 
                 ObjectInputStream inputStream = new ObjectInputStream(clientSocket.getInputStream());
-                rmiStatus = (RMIStatus) inputStream.readObject();
+                rmiStatus = (String) inputStream.readObject();
                 inputStreamObject = inputStream.readObject();
 
                 clientSocket.close();
-//                if (rmiStatus == RMIStatus.OK) {
-//                    return inputStreamObject;
-//                } else if (rmiStatus == RMIStatus.RMIException) {
-//                    throw (Throwable) inputStreamObject;
-//                }
+                if (rmiStatus.equals(RMIStatus.OK.toString())) {
+                    return inputStreamObject;
+                } else if (rmiStatus.equals(RMIStatus.RMIException.toString())) {
+                    throw (Throwable) inputStreamObject;
+                }
             }
             catch (Exception e)
             {

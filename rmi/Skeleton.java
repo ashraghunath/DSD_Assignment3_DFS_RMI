@@ -271,118 +271,114 @@ public class Skeleton<T>
         }
     }
 
-    private class ServiceThread implements Runnable {
+    private class ServiceThread implements Runnable
+    {
+        private Socket clientSocket;
 
-        private final Socket client;
-
-        ServiceThread(Socket socket) {
-            this.client = socket;
+        public ServiceThread(Socket clientSocket)
+        {
+            this.clientSocket = clientSocket;
         }
 
-        private void feedback(String var1, Throwable var2, ObjectOutputStream objectOutputStream) throws RMIException {
-            try {
-                RMIException var4 = new RMIException("remote exception: " + var1, var2);
-                objectOutputStream.writeBoolean(false);
-                objectOutputStream.writeObject(var4);
-            } catch (Exception var5) {
-            }
+        @Override
+        public void run()
+        {
+            ObjectOutputStream objectOutputStream = null;
+            Method method = null;
+            Class<?>[] parameterTypes = null;
+            Object[] args = null;
 
-            throw new RMIException(var1, var2);
-        }
+            try
+            {
+                objectOutputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+                objectOutputStream.flush();
 
-        public void run() {
+                ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+                String methodName = (String) in.readObject();
 
-            ObjectOutputStream objOutput = null;
-            ObjectInputStream objInput = null;
+                parameterTypes = (Class<?>[]) in.readObject();
+                args = (Object[]) in.readObject();
 
-
-            try {
-                try {
-
-                    objOutput = new ObjectOutputStream(this.client.getOutputStream());
-                    objOutput.flush();
-                    objInput = new ObjectInputStream(this.client.getInputStream());
-
-                } catch (Throwable throwable) {
-                    throw new RMIException("unable to create object output stream", throwable);
+                try
+                {
+                    method = remoteInterface.getMethod(methodName, parameterTypes);
                 }
-
-                String methodName = null;
-                Class[] paramTypes = null;
-                Object[] params = null;
-                Method method = null;
-                Object result;
-
-                try {
-                    methodName = (String) objInput.readObject();
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method name", throwable, objOutput);
-                }
-
-                try {
-                    paramTypes = (Class<T>[]) objInput.readObject();
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method parameter types", throwable, objOutput);
-                }
-
-                try {
-                    params = (Object[])(objInput.readObject());
-                } catch (Throwable throwable) {
-                    this.feedback("unable to read method arguments", throwable, objOutput);
-                }
-
-                try {
-                    method = remoteInterface.getMethod(methodName, paramTypes);
-                } catch (Throwable throwable) {
-                    this.feedback("method not found", throwable, objOutput);
-                }
-
-                try {
-                    result = method.invoke(Skeleton.this.server, params);
+                catch (NoSuchMethodException e)
+                {
                     try
                     {
-                        objOutput.writeObject(result);
-                        client.close();
+                        objectOutputStream.writeObject(RMIStatus.RMIException.toString());
+                        objectOutputStream.writeObject(e);
+                        clientSocket.close();
+                    }
+                    catch (Exception e1)
+                    {
+                        service_error(new RMIException(e1.getCause()));
+                    }
+
+                }
+                if (method != null)
+                {
+                    Object result = method.invoke(server, args);
+                    try
+                    {
+                        objectOutputStream.writeObject(RMIStatus.OK.toString());
+                        objectOutputStream.writeObject(result);
+                        clientSocket.close();
                     }
                     catch (Exception e)
                     {
                         service_error(new RMIException(e.getCause()));
                     }
-                } catch (InvocationTargetException e) {
-                    service_error(new RMIException(e));
-                } catch (IllegalAccessException e) {
-                    service_error(new RMIException(e));
                 }
-            } catch (RMIException rmiException) {
-                service_error(rmiException);
-            } finally {
-                if (objOutput != null) {
+            }
+            catch (InvocationTargetException e)
+            {
+                try
+                {
+                    objectOutputStream.writeObject(RMIStatus.EXCEPTION.toString());
+                    objectOutputStream.writeObject(e.getCause());
+                }
+                catch (Exception e1)
+                {
+                    service_error(new RMIException(e.getCause()));
+                }
+            }
+            catch (IOException e)
+            {
+                service_error(new RMIException(e));
+            }
+            catch (Exception e)
+            {
+                System.out.println("Skeleton Handler exception : " + e);
+                e.printStackTrace();
+            }
+            finally {
+                if (objectOutputStream != null) {
                     try {
-                        objOutput.flush();
+                        objectOutputStream.flush();
                     } catch (Exception e) {
                     }
 
                     try {
-                        objOutput.close();
+                        objectOutputStream.close();
                     } catch (Exception e) {
                     }
                 }
-                if (objInput != null) {
+                if (objectOutputStream != null) {
                     try {
-                        objInput.close();
+                        objectOutputStream.close();
                     } catch (Exception e) {
                     }
                 }
 
             }
-
         }
     }
-
 
 }
 //TODO
 enum RMIStatus {
-    OK, RMIException
+    OK, RMIException, EXCEPTION
 };
 
