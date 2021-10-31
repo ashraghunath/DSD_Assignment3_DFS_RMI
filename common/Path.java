@@ -23,12 +23,13 @@ public class Path implements Iterable<String>, Serializable
 {
     private String filePath;
     private List<String> componentList;
+    private static final String DELIMITER ="/";
 
 
     /** Creates a new path which represents the root directory. */
     public Path()
     {
-        String rootPath = "/";
+        String rootPath = DELIMITER;
         setValues(rootPath);
     }
 
@@ -46,7 +47,7 @@ public class Path implements Iterable<String>, Serializable
         if(!Objects.nonNull(component) || component.isEmpty() || !isValidComponent(component))
             throw new IllegalArgumentException("invalid component string");
 
-        String newPath = path.filePath + "/" + component;
+        String newPath = path.filePath + DELIMITER + component;
         setValues(newPath);
     }
 
@@ -120,7 +121,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public static Path[] list(File directory) throws FileNotFoundException
     {
-        if (directory == null)
+        if (Objects.isNull(directory))
         {
             throw new FileNotFoundException("directory parameter is null");
         }
@@ -155,7 +156,7 @@ public class Path implements Iterable<String>, Serializable
 
         if (file.isDirectory())
         {
-            String exPath = path + "/" + file.getName();
+            String exPath = path + DELIMITER + file.getName();
             for (File f : file.listFiles())
             {
                 files.addAll(getAllFiles(f, exPath));
@@ -164,7 +165,7 @@ public class Path implements Iterable<String>, Serializable
         else
         {
 
-            files.add(path + "/" + file.getName());
+            files.add(path + DELIMITER + file.getName());
         }
 
         return files;
@@ -177,7 +178,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public boolean isRoot()
     {
-        return (filePath.equals("/"));
+        return (filePath.equals(DELIMITER));
     }
 
     /** Returns the path to the parent of this path.
@@ -192,11 +193,11 @@ public class Path implements Iterable<String>, Serializable
             throw new IllegalArgumentException("Root cannot have parent");
         }
 
-        StringBuffer sBuffer = new StringBuffer("/");
+        StringBuffer sBuffer = new StringBuffer(DELIMITER);
 
         for (int i = 0 ; i < componentList.size() - 1; i++)
         {
-            sBuffer.append("/").append(componentList.get(i));
+            sBuffer.append(DELIMITER).append(componentList.get(i));
         }
 
         return new Path(sBuffer.toString());
@@ -241,7 +242,7 @@ public class Path implements Iterable<String>, Serializable
      */
     public File toFile(File root)
     {
-        if (root != null)
+        if (Objects.nonNull(root))
         {
             return new File(root, this.toString());
         }
@@ -287,7 +288,7 @@ public class Path implements Iterable<String>, Serializable
 
     private void setValues(String path)
     {
-        if (path == null)
+        if (Objects.isNull(path))
         {
             throw new IllegalArgumentException("Path is null");
         }
@@ -297,7 +298,7 @@ public class Path implements Iterable<String>, Serializable
             throw new IllegalArgumentException("Path is empty");
         }
 
-        if (!path.startsWith("/"))
+        if (!path.startsWith(DELIMITER))
         {
             throw new IllegalArgumentException("Path doesn't start with /");
         }
@@ -307,10 +308,10 @@ public class Path implements Iterable<String>, Serializable
             throw new IllegalArgumentException("illegal character in path");
         }
 
-        StringBuffer sBuffer = new StringBuffer("/");
+        StringBuffer sBuffer = new StringBuffer(DELIMITER);
         componentList = new ArrayList<>();
 
-        String[] components  = path.split("/");
+        String[] components  = path.split(DELIMITER);
 
         for (String c : components)
         {

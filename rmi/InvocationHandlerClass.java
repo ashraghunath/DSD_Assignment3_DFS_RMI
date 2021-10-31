@@ -58,7 +58,6 @@ public class InvocationHandlerClass implements InvocationHandler, Serializable {
             outputStream.writeObject(method.getParameterTypes());
             outputStream.writeObject(args);
 
-
             ObjectInputStream inputStream = new ObjectInputStream(clientSocket.getInputStream());
             rmiStatus = (String) inputStream.readObject();
             inputStreamObject = inputStream.readObject();
@@ -99,27 +98,18 @@ public class InvocationHandlerClass implements InvocationHandler, Serializable {
     }
 
     private int hashCode(Object proxy, Object[] args) {
-        if (args != null){
-            throw new IllegalArgumentException("no argument found");
-        }
         InvocationHandlerClass stubInvocationHandlerClass = (InvocationHandlerClass) Proxy.getInvocationHandler(proxy);
         return stubInvocationHandlerClass.inetSocketAddress.hashCode() + proxy.getClass().hashCode();
     }
 
     private String toString(Object proxy, Object[] args){
-        if (args != null){
-            throw new IllegalArgumentException("no argument found");
-        }
-
         InvocationHandlerClass stubInvocationHandlerClass = (InvocationHandlerClass) Proxy.getInvocationHandler(proxy);
         String name = "Remote Interface : " + proxy.getClass().getInterfaces()[0].toString();
-        String addr = "Remote Address: " + stubInvocationHandlerClass.inetSocketAddress.toString();
-
-        return name + "\n" + addr + "\n";
+        String address = "Remote Address: " + stubInvocationHandlerClass.inetSocketAddress.toString();
+        return name + "\n" + address + "\n";
     }
 
     private boolean isRemote(Method method) {
-
         for(Method value : c.getMethods())
         {
             if(method.equals(value))

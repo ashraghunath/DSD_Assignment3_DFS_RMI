@@ -7,6 +7,7 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.*;
+import java.util.Objects;
 
 /** RMI skeleton
 
@@ -67,7 +68,7 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server)
     {
-        if(c==null || server==null)
+        if(Objects.isNull(c) || Objects.isNull(server))
             throw new NullPointerException("parameters are null while initializing");
         if(!c.isInterface())
             throw new Error("Variable c not an interface");
@@ -100,7 +101,7 @@ public class Skeleton<T>
      */
     public Skeleton(Class<T> c, T server, InetSocketAddress address)
     {
-        if(c==null || server==null)
+        if(Objects.isNull(c) || Objects.isNull(server))
             throw new NullPointerException("parameters are null while initializing");
         if(!c.isInterface())
             throw new Error("Variable c not an interface");
@@ -231,7 +232,7 @@ public class Skeleton<T>
                 Skeleton.this.notifyAll();
 
                 try{
-                    if(inetSocketAddress==null)
+                    if(Objects.isNull(inetSocketAddress))
                     {
                         serverSocket = new ServerSocket(0);
                         inetSocketAddress = (InetSocketAddress) serverSocket.getLocalSocketAddress();

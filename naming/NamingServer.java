@@ -12,23 +12,6 @@ import storage.*;
 
 
 
-
-class ServerStub {
-    public Storage storageStub;
-    public Command commandStub;
-
-    public ServerStub(Storage storage, Command command){
-        storageStub = storage;
-        commandStub = command;
-    }
-
-    public boolean equals(ServerStub serverStub){
-        return storageStub.equals(serverStub.storageStub) && commandStub.equals(serverStub.commandStub);
-    }
-
-}
-
-
 /** Naming server.
 
  <p>
@@ -263,4 +246,22 @@ public class NamingServer implements Service, Registration
     }
 }
 
+
+
+
+
+class ServerStub {
+    public Storage storageStub;
+    public Command commandStub;
+
+    public ServerStub(Storage storage, Command command){
+        storageStub = storage;
+        commandStub = command;
+    }
+
+    public boolean equals(ServerStub serverStub){
+        return storageStub.equals(serverStub.storageStub) && commandStub.equals(serverStub.commandStub);
+    }
+
+}
 

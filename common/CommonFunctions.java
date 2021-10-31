@@ -4,6 +4,11 @@ import rmi.RMIException;
 
 import java.lang.reflect.Method;
 
+/**
+ * @author Ashwin Raghunath
+ * @since 21-10-21
+ * <h1>Class to have common functionalities like throwsRemoteException</h1>
+ */
 public class CommonFunctions {
 
     public static <T> boolean throwsRemoteException(Class<T> c){

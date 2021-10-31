@@ -7,7 +7,11 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 
-
+/**
+ * @author Ashwin Raghunath
+ * @since 21-10-21
+ * <h1>Hashtree data structure created to store values required for naming server</h1>
+ */
 public class FileHashTree {
     private HashNode root;
     private List<ServerStub> serverStubList;
