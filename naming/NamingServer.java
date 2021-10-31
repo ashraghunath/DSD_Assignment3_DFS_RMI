@@ -59,7 +59,7 @@ public class NamingServer implements Service, Registration
     private boolean started = false;
     private boolean stopping = false;
     private LinkedList<ServerStub> stubList = new LinkedList<>();
-    private HashTree hashTree = new HashTree(stubList);
+    private FileHashTree fileHashTree = new FileHashTree(stubList);
 
     private static Random randGenerator = new Random();
 
@@ -157,13 +157,13 @@ public class NamingServer implements Service, Registration
     @Override
     public boolean isDirectory(Path path) throws FileNotFoundException
     {
-        return hashTree.isDirectory(path);
+        return fileHashTree.isDirectory(path);
     }
 
     @Override
     public String[] list(Path directory) throws FileNotFoundException
     {
-        return hashTree.list(directory);
+        return fileHashTree.list(directory);
     }
 
     @Override
@@ -175,12 +175,12 @@ public class NamingServer implements Service, Registration
         ServerStub serverStub = stubList.get(randGenerator.nextInt(stubList.size()));
 
 
-        if(!hashTree.isDirectory(file.parent()))
+        if(!fileHashTree.isDirectory(file.parent()))
         {
             throw new FileNotFoundException("The parent of "+file.toString()+" is not a directory.");
         }
 
-        boolean success = hashTree.createFile(file, serverStub);
+        boolean success = fileHashTree.createFile(file, serverStub);
 
         if(!success)
             return false;
@@ -189,7 +189,7 @@ public class NamingServer implements Service, Registration
 
         if(!success)
         {
-            hashTree.delete(file);
+            fileHashTree.delete(file);
         }
 
         return success;
@@ -202,25 +202,25 @@ public class NamingServer implements Service, Registration
         if(directory.isRoot())
             return false;
 
-        if(!hashTree.isDirectory(directory.parent()))
+        if(!fileHashTree.isDirectory(directory.parent()))
         {
             throw new FileNotFoundException("The parent of " + directory.toString() + " is not a directory.");
         }
 
-        return hashTree.createDirectory(directory);
+        return fileHashTree.createDirectory(directory);
 
     }
 
     @Override
     public boolean delete(Path path) throws FileNotFoundException
     {
-        return (!path.isRoot()) && hashTree.delete(path);
+        return (!path.isRoot()) && fileHashTree.delete(path);
     }
 
     @Override
     public Storage getStorage(Path file) throws FileNotFoundException
     {
-        return hashTree.getStorage(file).storageStub;
+        return fileHashTree.getStorage(file).storageStub;
     }
 
     // The method register is documented in Registration.java.
@@ -250,7 +250,7 @@ public class NamingServer implements Service, Registration
 
         for (Path path : files)
         {
-            if (!path.isRoot() && !hashTree.createFileRecursive(path, newStub))
+            if (!path.isRoot() && !fileHashTree.createFileRecursive(path, newStub))
             {
                 deleteList.add(path);
             }

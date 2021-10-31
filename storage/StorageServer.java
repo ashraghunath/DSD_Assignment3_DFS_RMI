@@ -39,7 +39,7 @@ public class StorageServer implements Storage, Command
     {
         if (root == null)
         {
-            throw new NullPointerException("Error: null directory");
+            throw new NullPointerException("directory parameter is null");
         }
 
         this.root = root.getAbsoluteFile();
@@ -159,7 +159,7 @@ public class StorageServer implements Storage, Command
 
         if (!localFile.exists() || localFile.isDirectory())
         {
-            throw new FileNotFoundException("Either file does not exists or Cannot get size for a directory.");
+            throw new FileNotFoundException("File does not exists or Cannot get size for a directory");
         }
 
         return localFile.length();
@@ -182,7 +182,7 @@ public class StorageServer implements Storage, Command
 
         if (offset < 0 || offset > Integer.MAX_VALUE || length < 0 || offset + length > localFile.length())
         {
-            throw new IndexOutOfBoundsException("invalid offset and/or length");
+            throw new IndexOutOfBoundsException("invalid offset or length");
         }
 
         RandomAccessFile fileReader = new RandomAccessFile(localFile, "r");
@@ -216,7 +216,7 @@ public class StorageServer implements Storage, Command
 
         if (offset < 0 || offset > Integer.MAX_VALUE)
         {
-            throw new IndexOutOfBoundsException("Invalid offset and/or length");
+            throw new IndexOutOfBoundsException("Invalid offset or length");
         }
 
         RandomAccessFile fileWriter = new RandomAccessFile(localFile, "rw");

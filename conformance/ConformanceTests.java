@@ -43,15 +43,15 @@ public class ConformanceTests
                          conformance.storage.AccessTest.class,
                          conformance.storage.DirectoryTest.class,
                          conformance.naming.ContactTest.class,
-//                         conformance.naming.RegistrationTest.class,
-//                         conformance.naming.ListingTest.class,
-//                         conformance.naming.CreationTest.class,
-//                         conformance.naming.StubRetrievalTest.class
+                         conformance.naming.RegistrationTest.class,
+                         conformance.naming.ListingTest.class,
+                         conformance.naming.CreationTest.class,
+                         conformance.naming.StubRetrievalTest.class
         };
         Series                      series = new Series(tests);
 
         //Todo change back to 3
-        SeriesReport                report = series.run(20, System.out);
+        SeriesReport                report = series.run(10, System.out);
 
         // Print the report and exit with an appropriate exit status.
         report.print(System.out);

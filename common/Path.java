@@ -25,52 +25,6 @@ public class Path implements Iterable<String>, Serializable
     private List<String> componentList;
 
 
-    private void setValues(String path)
-    {
-        if (path == null)
-        {
-            throw new IllegalArgumentException("Path cannot be null string");
-        }
-
-        if (path.length() == 0)
-        {
-            throw new IllegalArgumentException("Path cannot be empty string");
-        }
-
-        if (!path.startsWith("/"))
-        {
-            throw new IllegalArgumentException("Path should start with root directory");
-        }
-
-        if (path.contains(":"))
-        {
-            throw new IllegalArgumentException("Path cannot contain invalid characters");
-        }
-
-        StringBuffer sBuffer = new StringBuffer("/");
-        componentList = new ArrayList<>();
-
-        String[] components  = path.split("/");
-
-        for (String c : components)
-        {
-            if (c.length() == 0)
-            {
-                continue;
-            }
-            componentList.add(c);
-            if (sBuffer.charAt(sBuffer.length() - 1) != '/')
-            {
-                sBuffer.append('/');
-            }
-            sBuffer.append(c);
-        }
-
-        filePath = sBuffer.toString();
-
-    }
-
-
     /** Creates a new path which represents the root directory. */
     public Path()
     {
@@ -89,20 +43,8 @@ public class Path implements Iterable<String>, Serializable
      */
     public Path(Path path, String component)
     {
-        if (component == null)
-        {
-            throw new IllegalArgumentException("Path component cannot be null string");
-        }
-
-        if (component.length() == 0)
-        {
-            throw new IllegalArgumentException("Path component cannot be empty string");
-        }
-
-        if (component.contains("/") || component.contains(":"))
-        {
-            throw new IllegalArgumentException("Path component cannot contain invalid characters");
-        }
+        if(!Objects.nonNull(component) || component.isEmpty() || !isValidComponent(component))
+            throw new IllegalArgumentException("invalid component string");
 
         String newPath = path.filePath + "/" + component;
         setValues(newPath);
@@ -126,33 +68,6 @@ public class Path implements Iterable<String>, Serializable
     }
 
 
-    private class PathIterator implements Iterator<String>
-    {
-        private Iterator<String> iter;
-
-        public PathIterator(Iterator<String> iter)
-        {
-            this.iter = iter;
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-            return iter.hasNext();
-        }
-
-        @Override
-        public String next()
-        {
-            return iter.next();
-        }
-
-        @Override
-        public void remove()
-        {
-            throw new UnsupportedOperationException();
-        }
-    }
 
 
     /** Returns an iterator over the components of the path.
@@ -169,6 +84,30 @@ public class Path implements Iterable<String>, Serializable
         return new PathIterator(componentList.iterator());
     }
 
+    private class PathIterator implements Iterator<String>
+    {
+        private Iterator<String> iterator;
+
+        public PathIterator(Iterator<String> iterator)
+        {
+            this.iterator = iterator;
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+            return iterator.hasNext();
+        }
+
+        @Override
+        public String next()
+        {
+            return iterator.next();
+        }
+
+    }
+
+
     /** Lists the paths of all files in a directory tree on the local
      filesystem.
 
@@ -183,12 +122,12 @@ public class Path implements Iterable<String>, Serializable
     {
         if (directory == null)
         {
-            throw new FileNotFoundException("Null directory not found");
+            throw new FileNotFoundException("directory parameter is null");
         }
 
         if (!directory.exists())
         {
-            throw new FileNotFoundException(directory.getPath() + "does not exist");
+            throw new FileNotFoundException(directory.getPath() + "directory non existent");
         }
 
         if (!directory.isDirectory())
@@ -250,7 +189,7 @@ public class Path implements Iterable<String>, Serializable
     {
         if (isRoot())
         {
-            throw new IllegalArgumentException("Cannot find parent of root directory");
+            throw new IllegalArgumentException("Root cannot have parent");
         }
 
         StringBuffer sBuffer = new StringBuffer("/");
@@ -273,7 +212,7 @@ public class Path implements Iterable<String>, Serializable
     {
         if (isRoot())
         {
-            throw new IllegalArgumentException("Cannot find parent of root directory");
+            throw new IllegalArgumentException("Root cannot have parent");
         }
 
         return componentList.get(componentList.size() - 1);
@@ -337,6 +276,59 @@ public class Path implements Iterable<String>, Serializable
         return filePath.hashCode();
     }
 
+    //Checks if component has separators
+    private boolean isValidComponent(String component) {
+        for (char c : component.toCharArray()) {
+            if(c=='/' || c==':')
+                return false;
+        }
+        return true;
+    }
+
+    private void setValues(String path)
+    {
+        if (path == null)
+        {
+            throw new IllegalArgumentException("Path is null");
+        }
+
+        if (path.length() == 0)
+        {
+            throw new IllegalArgumentException("Path is empty");
+        }
+
+        if (!path.startsWith("/"))
+        {
+            throw new IllegalArgumentException("Path doesn't start with /");
+        }
+
+        if (path.contains(":"))
+        {
+            throw new IllegalArgumentException("illegal character in path");
+        }
+
+        StringBuffer sBuffer = new StringBuffer("/");
+        componentList = new ArrayList<>();
+
+        String[] components  = path.split("/");
+
+        for (String c : components)
+        {
+            if (c.length() == 0)
+            {
+                continue;
+            }
+            componentList.add(c);
+            if (sBuffer.charAt(sBuffer.length() - 1) != '/')
+            {
+                sBuffer.append('/');
+            }
+            sBuffer.append(c);
+        }
+
+        filePath = sBuffer.toString();
+
+    }
     /** Converts the path to a string.
 
      <p>

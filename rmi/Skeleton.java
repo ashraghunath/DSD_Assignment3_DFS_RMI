@@ -307,7 +307,7 @@ public class Skeleton<T>
                 {
                     try
                     {
-                        objectOutputStream.writeObject(RMIStatus.RMIException.toString());
+                        objectOutputStream.writeObject(Status.RMIException.toString());
                         objectOutputStream.writeObject(e);
                         clientSocket.close();
                     }
@@ -322,7 +322,7 @@ public class Skeleton<T>
                     Object result = method.invoke(server, args);
                     try
                     {
-                        objectOutputStream.writeObject(RMIStatus.OK.toString());
+                        objectOutputStream.writeObject(Status.OK.toString());
                         objectOutputStream.writeObject(result);
                         clientSocket.close();
                     }
@@ -336,7 +336,7 @@ public class Skeleton<T>
             {
                 try
                 {
-                    objectOutputStream.writeObject(RMIStatus.EXCEPTION.toString());
+                    objectOutputStream.writeObject(Status.EXCEPTION.toString());
                     objectOutputStream.writeObject(e.getCause());
                 }
                 catch (Exception e1)
@@ -350,7 +350,6 @@ public class Skeleton<T>
             }
             catch (Exception e)
             {
-                System.out.println("Skeleton Handler exception : " + e);
                 e.printStackTrace();
             }
             finally {
@@ -378,7 +377,7 @@ public class Skeleton<T>
 
 }
 //TODO
-enum RMIStatus {
+enum Status {
     OK, RMIException, EXCEPTION
 };
 

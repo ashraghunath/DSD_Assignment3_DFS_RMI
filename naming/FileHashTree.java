@@ -6,16 +6,13 @@ import rmi.RMIException;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-enum Operation
-{
-    CREATEDIR, CREATEFILE, DELETE, ISDIRECTORY
-}
 
-public class HashTree {
+
+public class FileHashTree {
     private HashNode root;
     private List<ServerStub> serverStubList;
 
-    public HashTree (LinkedList<ServerStub> serverStubList)
+    public FileHashTree(LinkedList<ServerStub> serverStubList)
     {
         this.serverStubList = serverStubList;
         this.root = new HashNode();
@@ -24,13 +21,13 @@ public class HashTree {
     public String[] list (Path directory) throws FileNotFoundException
     {
 
-        Iterator<String> iter = directory.iterator();
+        Iterator<String> iterator = directory.iterator();
         String fileName;
         HashNode subRoot = root;
 
-        while (iter.hasNext())
+        while (iterator.hasNext())
         {
-            fileName = iter.next();
+            fileName = iterator.next();
             if(!subRoot.containsDirectory(fileName))
                 throw new FileNotFoundException();
 
@@ -51,8 +48,8 @@ public class HashTree {
 
     public boolean createDirectory (Path directory) throws FileNotFoundException
     {
-        Iterator<String> iter = directory.iterator();
-        boolean flag = OperationHelper(Operation.CREATEDIR, root, iter, null, directory);
+        Iterator<String> iterator = directory.iterator();
+        boolean flag = helper(Operation.CREATEDIR, root, iterator, null, directory);
         return flag;
     }
 
@@ -60,8 +57,8 @@ public class HashTree {
     public boolean createFile (Path file, ServerStub serverStub) throws FileNotFoundException
     {
 
-        Iterator<String> iter = file.iterator();
-        boolean flag = OperationHelper(Operation.CREATEFILE, root, iter, serverStub, file);
+        Iterator<String> iterator = file.iterator();
+        boolean flag = helper(Operation.CREATEFILE, root, iterator, serverStub, file);
 
         return flag;
     }
@@ -69,12 +66,12 @@ public class HashTree {
 
     public boolean createFileRecursive(Path path, ServerStub serverStub)
     {
-        Iterator<String> iter = path.iterator();
+        Iterator<String> iterator = path.iterator();
         HashNode hashNode = root;
-        String currentPath = iter.next();
+        String currentPath = iterator.next();
         boolean doesNotExists = true;
 
-        while (iter.hasNext())
+        while (iterator.hasNext())
         {
             if (hashNode.containsFile(currentPath))
             {
@@ -88,7 +85,7 @@ public class HashTree {
             }
 
             hashNode = hashNode.getChild(currentPath);
-            currentPath = iter.next();
+            currentPath = iterator.next();
         }
 
         if (doesNotExists)
@@ -113,15 +110,15 @@ public class HashTree {
     public boolean isDirectory (Path path) throws FileNotFoundException
     {
 
-        Iterator<String> iter = path.iterator();
-        boolean flag = OperationHelper(Operation.ISDIRECTORY, root, iter, null, path);
+        Iterator<String> iterator = path.iterator();
+        boolean flag = helper(Operation.ISDIRECTORY, root, iterator, null, path);
 
         return flag;
     }
 
-    public boolean OperationHelper(Operation mode, HashNode root, Iterator<String> iter, ServerStub serverStub, Path path) throws FileNotFoundException
+    public boolean helper(Operation mode, HashNode root, Iterator<String> iterator, ServerStub serverStub, Path path) throws FileNotFoundException
     {
-        if(!iter.hasNext())
+        if(!iterator.hasNext())
         {
             if (mode == Operation.CREATEDIR || mode == Operation.CREATEFILE || mode == Operation.DELETE)
             {
@@ -132,30 +129,30 @@ public class HashTree {
                 return true;
         }
 
-        String nextDir = iter.next();
+        String nextDirectory = iterator.next();
 
-        if (iter.hasNext())
+        if (iterator.hasNext())
         {
-            return OperationHelper(mode, root.getChild(nextDir), iter, serverStub, path);
+            return helper(mode, root.getChild(nextDirectory), iterator, serverStub, path);
         }
         else
         {
             if (mode == Operation.ISDIRECTORY)
             {
-                if (root.containsDirectory(nextDir))
+                if (root.containsDirectory(nextDirectory))
                     return true;
-                if (root.containsFile(nextDir))
+                if (root.containsFile(nextDirectory))
                     return false;
 
                 throw new FileNotFoundException("File not found in the directory in any storage server");
             }
             else
             {
-                if (root.containsDirectory(nextDir) || root.containsFile(nextDir))
+                if (root.containsDirectory(nextDirectory) || root.containsFile(nextDirectory))
                 {
                     if (mode == Operation.DELETE)
                     {
-                        root.delete (nextDir, path);
+                        root.delete (nextDirectory, path);
                         return true;
                     }
                     else
@@ -171,7 +168,7 @@ public class HashTree {
                     }
                     else
                     {
-                        root.create(nextDir, serverStub);
+                        root.create(nextDirectory, serverStub);
                         return true;
                     }
                 }
@@ -182,14 +179,14 @@ public class HashTree {
 
     public ServerStub getStorage (Path path) throws FileNotFoundException
     {
-        Iterator<String> iter = path.iterator();
+        Iterator<String> iterator = path.iterator();
         HashNode subRoot = root;
         String name;
 
-        while (iter.hasNext())
+        while (iterator.hasNext())
         {
-            name = iter.next();
-            if (iter.hasNext())
+            name = iterator.next();
+            if (iterator.hasNext())
             {
                 if (subRoot.containsDirectory(name))
                 {
@@ -219,8 +216,8 @@ public class HashTree {
     public boolean delete (Path path) throws FileNotFoundException
     {
 
-        Iterator<String> iter = path.iterator();
-        boolean flag = OperationHelper(Operation.DELETE, root, iter, null, path);
+        Iterator<String> iterator = path.iterator();
+        boolean flag = helper(Operation.DELETE, root, iterator, null, path);
 
         if (!flag)
         {
@@ -322,4 +319,8 @@ public class HashTree {
 
 
     }
+}
+enum Operation
+{
+    CREATEDIR, CREATEFILE, DELETE, ISDIRECTORY
 }
